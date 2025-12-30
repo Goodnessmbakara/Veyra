@@ -31,15 +31,15 @@ export class TelemetryManager {
 			console.error("Error fetching KPIs from API:", error);
 		}
 
-		// Fallback to mock data if API fails
+		// Return zeros if API fails - no mock data
 		return {
-			activeMarkets: 12,
-			pendingJobs: 3,
-			success24h: 18,
-			failed24h: 1,
-			p50LatencyMs: 1200,
-			p95LatencyMs: 4200,
-			attestations24h: 15
+			activeMarkets: 0,
+			pendingJobs: 0,
+			success24h: 0,
+			failed24h: 0,
+			p50LatencyMs: 0,
+			p95LatencyMs: 0,
+			attestations24h: 0
 		};
 	}
 }

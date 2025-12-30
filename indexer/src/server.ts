@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { db, initSchema } from "./db.js";
 import { runIndexer } from "./indexer.js";
 import { scanHistoricalMarkets } from "./historical-scan.js";
+import { startPolymarketSync } from "./polymarket-sync.js";
 
 dotenv.config();
 
@@ -285,6 +286,9 @@ const PORT = Number(process.env.PORT || 4001);
 app.listen(PORT, async () => {
 	console.log(`Indexer API listening on :${PORT}`);
 	console.log(`Database schema initialized`);
+	
+	// Start Polymarket auto-sync (runs every 30 minutes)
+	startPolymarketSync(30 * 60 * 1000);
 	
 	// Only run event listener if explicitly enabled and env vars are set
 	if (process.env.RUN_INDEXER === "1") {
