@@ -77,13 +77,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 						</span>
 					</div>
 					<div className="flex items-center gap-4">
-						<Button variant="ghost" size="icon">
+						<Button 
+							variant="ghost" 
+							size="icon"
+							onClick={() => window.open("https://github.com/JayHermes/Veyra", "_blank")}
+							title="GitHub"
+						>
 							<Github className="h-4 w-4" />
 						</Button>
-						<Button variant="ghost" size="icon">
+						<Button 
+							variant="ghost" 
+							size="icon"
+							onClick={() => window.open("https://x.com/Veyra_VPO", "_blank")}
+							title="Twitter/X"
+						>
 							<Twitter className="h-4 w-4" />
 						</Button>
-						<Button variant="ghost" size="icon">
+						<Button 
+							variant="ghost" 
+							size="icon"
+							onClick={() => window.open("https://veyra.network", "_blank")}
+							title="Website"
+						>
 							<Globe className="h-4 w-4" />
 						</Button>
 					</div>

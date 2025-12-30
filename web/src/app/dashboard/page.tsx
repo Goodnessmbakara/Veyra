@@ -18,10 +18,30 @@ export default function DashboardPage(): React.ReactElement {
 	const [marketsVm] = useState(() => new MarketsListViewModel(new MarketsManager()));
 	const [jobsVm] = useState(() => new JobsListViewModel(new VerificationManager()));
 	const [attVm] = useState(() => new AttestationsFeedViewModel(new AttestationManager()));
+	const [proofsVerified, setProofsVerified] = useState<number | null>(null);
 
 	useEffect(() => {
 		void (async () => {
 			await Promise.all([kpiVm.refresh(), marketsVm.load(), jobsVm.load(), attVm.load()]);
+			
+			// Calculate proofs verified percentage
+			try {
+				const jobsRes = await fetch("/api/jobs", { cache: "no-store" });
+				const attsRes = await fetch("/api/attestations", { cache: "no-store" });
+				if (jobsRes.ok && attsRes.ok) {
+					const jobs: any[] = await jobsRes.json();
+					const atts: any[] = await attsRes.json();
+					const totalJobs = jobs.filter((j: any) => j.status === "Succeeded" || j.status === "Failed").length;
+					const verifiedJobs = jobs.filter((j: any) => j.status === "Succeeded").length;
+					if (totalJobs > 0) {
+						setProofsVerified((verifiedJobs / totalJobs) * 100);
+					} else {
+						setProofsVerified(null);
+					}
+				}
+			} catch (e) {
+				console.error("Error calculating proofs verified:", e);
+			}
 		})();
 	}, [kpiVm, marketsVm, jobsVm, attVm]);
 
@@ -33,30 +53,31 @@ export default function DashboardPage(): React.ReactElement {
 			{/* KPI Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 				<Card>
-					<CardHeader className="pb-2"><CardTitle className="text-sm">Total Predictions</CardTitle></CardHeader>
+					<CardHeader className="pb-2"><CardTitle className="text-sm">Total Markets</CardTitle></CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? kpiVm.kpis.activeMarkets * 1000 + 2847 : "—"}</div>
-						<div className="text-xs text-muted-foreground">+12.5% from last month</div>
+						<div className="text-2xl font-semibold">{kpiVm.kpis ? kpiVm.kpis.activeMarkets : "—"}</div>
+						<div className="text-xs text-muted-foreground">Active prediction markets</div>
 					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2"><CardTitle className="text-sm">Integrated Markets</CardTitle></CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? marketsVm.items.length : "—"}</div>
-						<div className="text-xs text-muted-foreground">+8.2% from last month</div>
+						<div className="text-2xl font-semibold">{marketsVm.items.length}</div>
+						<div className="text-xs text-muted-foreground">Markets in system</div>
 					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2"><CardTitle className="text-sm">Active Jobs</CardTitle></CardHeader>
 					<CardContent>
 						<div className="text-2xl font-semibold">{kpiVm.kpis ? kpiVm.kpis.pendingJobs : "—"}</div>
+						<div className="text-xs text-muted-foreground">Pending verifications</div>
 					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2"><CardTitle className="text-sm">Proofs Verified</CardTitle></CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? `${(99.8).toFixed(1)}%` : "—"}</div>
-						<div className="text-xs text-muted-foreground">+0.3% from last month</div>
+						<div className="text-2xl font-semibold">{proofsVerified !== null ? `${proofsVerified.toFixed(1)}%` : "—"}</div>
+						<div className="text-xs text-muted-foreground">{kpiVm.kpis ? `${kpiVm.kpis.attestations24h} verified in 24h` : "No data"}</div>
 					</CardContent>
 				</Card>
 			</div>
