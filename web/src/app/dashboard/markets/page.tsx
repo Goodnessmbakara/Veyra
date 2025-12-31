@@ -156,7 +156,7 @@ function MarketsContent(): React.ReactElement {
 					{filteredMarkets.map(market => (
 					<Card
 						key={market.id}
-						className="flex flex-col hover:border-primary transition-colors cursor-pointer"
+						className="flex flex-col cursor-pointer"
 						onClick={() => setSelectedMarket(market)}
 					>
 						<CardHeader>
