@@ -15,6 +15,7 @@ export default function VeyraDashboardPage(): React.ReactElement {
 	const [markets, setMarkets] = useState<any[]>([]);
 	const [attestations, setAttestations] = useState<any[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [proofsVerified, setProofsVerified] = useState<number | null>(null);
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -32,6 +33,23 @@ export default function VeyraDashboardPage(): React.ReactElement {
 				setKpis(kpisData);
 				setMarkets(marketsData);
 				setAttestations(attestationsData);
+
+				// Calculate proofs verified percentage
+				try {
+					const jobsRes = await fetch("/api/jobs", { cache: "no-store" });
+					if (jobsRes.ok) {
+						const jobs: any[] = await jobsRes.json();
+						const totalJobs = jobs.filter((j: any) => j.status === "Succeeded" || j.status === "Failed").length;
+						const verifiedJobs = jobs.filter((j: any) => j.status === "Succeeded").length;
+						if (totalJobs > 0) {
+							setProofsVerified((verifiedJobs / totalJobs) * 100);
+						} else {
+							setProofsVerified(null);
+						}
+					}
+				} catch (e) {
+					console.error("Error calculating proofs verified:", e);
+				}
 			} catch (error) {
 				console.error("Failed to load dashboard data", error);
 			} finally {
@@ -45,18 +63,16 @@ export default function VeyraDashboardPage(): React.ReactElement {
 	return (
 		<div className="space-y-4 sm:space-y-6">
 			{/* Stats Cards */}
-			<div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+			<div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Total Predictions</CardTitle>
+						<CardTitle className="text-sm font-medium">Total Markets</CardTitle>
 						<Activity className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{kpis ? (kpis.activeMarkets * 1000 + 2847).toLocaleString() : "—"}</div>
-						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-							<TrendingUp className="w-3 h-3 text-green-500" />
-							<span className="text-green-500">+12.5%</span>
-							<span>from last month</span>
+						<div className="text-2xl font-bold">{kpis ? kpis.activeMarkets : "—"}</div>
+						<p className="text-xs text-muted-foreground mt-1">
+							Active prediction markets
 						</p>
 					</CardContent>
 				</Card>
@@ -66,11 +82,9 @@ export default function VeyraDashboardPage(): React.ReactElement {
 						<Globe className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{markets.length > 0 ? markets.length : "—"}</div>
-						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-							<TrendingUp className="w-3 h-3 text-green-500" />
-							<span className="text-green-500">+8.2%</span>
-							<span>from last month</span>
+						<div className="text-2xl font-bold">{markets.length}</div>
+						<p className="text-xs text-muted-foreground mt-1">
+							Markets in system
 						</p>
 					</CardContent>
 				</Card>
@@ -89,25 +103,9 @@ export default function VeyraDashboardPage(): React.ReactElement {
 						<Shield className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{kpis ? `${(99.8).toFixed(1)}%` : "—"}</div>
-						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-							<TrendingUp className="w-3 h-3 text-green-500" />
-							<span className="text-green-500">+0.3%</span>
-							<span>from last month</span>
-						</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">$VPO Staked</CardTitle>
-						<Zap className="w-4 h-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">2.4M</div>
-						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-							<TrendingUp className="w-3 h-3 text-green-500" />
-							<span className="text-green-500">+15.7%</span>
-							<span>from last month</span>
+						<div className="text-2xl font-bold">{proofsVerified !== null ? `${proofsVerified.toFixed(1)}%` : "—"}</div>
+						<p className="text-xs text-muted-foreground mt-1">
+							{kpis ? `${kpis.attestations24h} verified in 24h` : "No data"}
 						</p>
 					</CardContent>
 				</Card>
