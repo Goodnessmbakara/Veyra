@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, FileText, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import type { MarketSummary } from "@/lib/dashboard/types";
+import { cn } from "@/lib/utils";
 import { CreateMarketDialog } from "@/components/markets/CreateMarketDialog";
 import { TradeDialog } from "@/components/markets/TradeDialog";
 import { RedeemDialog } from "@/components/markets/RedeemDialog";
@@ -252,154 +253,165 @@ function MarketsContent(): React.ReactElement {
 
 			{/* Market Details Dialog */}
 			<Dialog open={!!selectedMarket} onOpenChange={() => setSelectedMarket(null)}>
-				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="text-xl">{selectedMarket?.question}</DialogTitle>
-						<DialogDescription>Market verification details and proofs</DialogDescription>
+				<DialogContent className="max-w-xl">
+					<DialogHeader className="space-y-3 pb-4">
+						<DialogTitle className="text-2xl font-bold leading-tight tracking-tight">
+							{selectedMarket?.question}
+						</DialogTitle>
+						<DialogDescription className="text-muted-foreground/80 flex items-center gap-2">
+							<FileText className="h-4 w-4" />
+							Market Verification & On-chain Proofs
+						</DialogDescription>
 					</DialogHeader>
 					{selectedMarket && (
 						<div className="space-y-4">
-							{/* Market Info */}
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<Label className="text-xs text-muted-foreground">Platform</Label>
-									<div className="mt-1">
-										<Badge variant="secondary">{selectedMarket.platform}</Badge>
+							{/* Market Info Tiles */}
+							<div className="grid grid-cols-2 gap-3">
+								<div className="glass-subtle p-3 rounded-2xl border border-white/5">
+									<Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Platform</Label>
+									<div className="mt-1 flex items-center gap-2">
+										<Badge variant="secondary" className="px-2 py-0 h-5 text-[10px]">{selectedMarket.platform}</Badge>
 									</div>
 								</div>
-								<div>
-									<Label className="text-xs text-muted-foreground">Status</Label>
+								<div className="glass-subtle p-3 rounded-2xl border border-white/5">
+									<Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Trading Status</Label>
 									<div className="mt-1">
 										<Badge
 											variant={selectedMarket.status === "Active" ? "default" : "outline"}
-											className={
+											className={cn(
+												"px-2 py-0 h-5 text-[10px]",
 												selectedMarket.status === "Active"
-													? "bg-blue-500/10 text-blue-500"
-													: "bg-green-500/10 text-green-500"
-											}
+													? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+													: "bg-green-500/10 text-green-400 border-green-500/20"
+											)}
 										>
 											{selectedMarket.status}
 										</Badge>
 									</div>
 								</div>
-								<div>
-									<Label className="text-xs text-muted-foreground">Category</Label>
-									<p className="text-sm font-medium mt-1">{selectedMarket.category}</p>
+								<div className="glass-subtle p-3 rounded-2xl border border-white/5">
+									<Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Category</Label>
+									<p className="text-sm font-medium mt-1 text-foreground/90">{selectedMarket.category}</p>
 								</div>
 								{selectedMarket.result !== "Pending" && (
-									<div>
-										<Label className="text-xs text-muted-foreground">Result</Label>
+									<div className="glass-subtle p-3 rounded-2xl border border-white/5">
+										<Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Final Outcome</Label>
 										<div className="mt-1">
 											<Badge
 												variant="outline"
-												className={
+												className={cn(
+													"px-2 py-0 h-5 text-[10px]",
 													selectedMarket.result === "Yes"
-														? "bg-green-500/10 text-green-500"
+														? "bg-green-500/10 text-green-400 border-green-500/20"
 														: selectedMarket.result === "No"
-														? "bg-red-500/10 text-red-500"
+														? "bg-red-500/10 text-red-400 border-red-400/20"
 														: ""
-												}
+												)}
 											>
 												{selectedMarket.result}
 											</Badge>
 										</div>
 									</div>
 								)}
-								<div className="col-span-2">
-									<Label className="text-xs text-muted-foreground">Market ID</Label>
-									<div className="flex items-center gap-2 mt-1">
-										<p className="text-sm font-mono truncate flex-1 bg-muted p-1.5 rounded">
+								<div className="col-span-2 glass-subtle p-4 rounded-2xl border border-white/5">
+									<Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Contract Address / Market ID</Label>
+									<div className="flex items-center gap-2 mt-2">
+										<p className="text-xs font-mono truncate flex-1 bg-white/5 p-2 rounded-xl text-muted-foreground">
 											{selectedMarket.id}
 										</p>
 										<Button
-											size="sm"
+											size="icon"
 											variant="ghost"
-											className="h-8 w-8 p-0"
+											className="h-8 w-8 rounded-xl hover:bg-white/10"
 											onClick={() => navigator.clipboard.writeText(selectedMarket.id)}
 										>
-											<Copy className="h-4 w-4" />
+											<Copy className="h-3.5 w-3.5" />
 										</Button>
 									</div>
 								</div>
-								<div>
-									<Label className="text-xs text-muted-foreground">Linked Proofs</Label>
-									<p className="text-sm font-medium mt-1">{selectedMarket.proofIds.length} proof(s)</p>
-								</div>
 							</div>
 
-							<Separator />
-
-							{/* Proof IDs */}
-							{selectedMarket.proofIds.length > 0 ? (
-								<div>
-									<Label className="text-sm font-medium mb-3 block">Linked Proofs</Label>
-									<div className="space-y-2">
-										{selectedMarket.proofIds.map((proofId) => {
+							{/* Proof Section */}
+							<div className="space-y-3">
+								<div className="flex items-center justify-between px-1">
+									<Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">On-chain Attestations</Label>
+									<Badge variant="outline" className="text-[10px] px-2 py-0 border-white/10">{selectedMarket.proofIds.length} Linked</Badge>
+								</div>
+								
+								<div className="space-y-2">
+									{selectedMarket.proofIds.length > 0 ? (
+										selectedMarket.proofIds.map((proofId) => {
 											const attestation = attestations[proofId];
 											return (
-												<div key={proofId} className="p-3 bg-muted rounded-md space-y-2">
-													<div className="flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<FileText className="w-4 h-4 text-muted-foreground" />
-															<span className="text-xs font-mono text-muted-foreground">
-																{proofId.slice(0, 10)}...{proofId.slice(-8)}
-															</span>
+												<div key={proofId} className="glass-subtle p-3.5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+													<div className="flex items-center justify-between gap-3">
+														<div className="flex items-center gap-3 overflow-hidden">
+															<div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+																<CheckCircle2 className="h-4 w-4 text-primary" />
+															</div>
+															<div className="flex flex-col min-w-0">
+																<span className="text-[10px] font-mono text-muted-foreground truncate">
+																	{proofId}
+																</span>
+															</div>
 														</div>
-														<div className="flex gap-1">
+														<div className="flex items-center gap-1.5">
 															<Button
-																size="sm"
+																size="icon"
 																variant="ghost"
+																className="h-8 w-8 rounded-lg hover:bg-white/5"
 																onClick={() => navigator.clipboard.writeText(proofId)}
 															>
-																<Copy className="w-3 h-3" />
+																<Copy className="w-3.5 h-3.5" />
 															</Button>
 															<Button
-																size="sm"
+																size="icon"
 																variant="ghost"
+																className="h-8 w-8 rounded-lg hover:bg-white/5"
 																onClick={() => {
 																	window.location.href = `/dashboard/attestations?search=${proofId}`;
 																}}
 															>
-																<ExternalLink className="w-3 h-3" />
+																<ExternalLink className="w-3.5 h-3.5" />
 															</Button>
 														</div>
 													</div>
 													{attestation?.attestationCid && (
-														<div className="flex items-center gap-2 text-xs">
-															<span className="text-muted-foreground">IPFS:</span>
+														<div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+															<span className="text-[10px] text-muted-foreground">Decentralized Storage (IPFS)</span>
 															<a
 																href={`https://gateway.pinata.cloud/ipfs/${attestation.attestationCid}`}
 																target="_blank"
 																rel="noopener noreferrer"
-																className="text-blue-500 hover:underline font-mono flex items-center gap-1"
+																className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-mono flex items-center gap-1.5"
 															>
-																{attestation.attestationCid.slice(0, 12)}...
+																{attestation.attestationCid.slice(0, 16)}...
 																<ExternalLink className="w-3 h-3" />
 															</a>
 														</div>
 													)}
 												</div>
 											);
-										})}
-									</div>
+										})
+									) : (
+										<div className="text-center py-6 px-4 rounded-2xl border border-dashed border-white/10 bg-white/2">
+											<p className="text-xs text-muted-foreground/60 leading-relaxed italic">
+												Verification protocol in progress. Attestations will be linked once the consensus threshold is met.
+											</p>
+										</div>
+									)}
 								</div>
-							) : (
-								<div className="text-center py-4 text-muted-foreground">
-									<p className="text-sm">No proofs linked yet. Proofs will appear here once verification is complete.</p>
-								</div>
-							)}
+							</div>
 
-							<Separator />
-
-							{/* Actions */}
-							<div className="flex flex-wrap gap-2">
+							{/* Action Footer */}
+							<div className="flex flex-wrap gap-2 pt-4">
 								{selectedMarket.status === "Resolved" && (
 									<RedeemDialog
 										marketAddress={selectedMarket.id}
 										trigger={
-											<Button className="flex-1 gap-2">
+											<Button className="flex-1 gap-2 h-11 rounded-xl font-bold bg-green-500 hover:bg-green-600 text-black">
 												<CheckCircle2 className="w-4 h-4" />
-												Redeem
+												Settle & Redeem
 											</Button>
 										}
 									/>
@@ -408,15 +420,15 @@ function MarketsContent(): React.ReactElement {
 									<ResolveMarketDialog
 										marketAddress={selectedMarket.id}
 										trigger={
-											<Button variant="outline" className="flex-1 gap-2">
+											<Button variant="outline" className="flex-1 gap-2 h-11 rounded-xl glass-hover">
 												<ExternalLink className="w-4 h-4" />
-												{selectedMarket.status === "Pending" ? "Check Status" : "Resolve"}
+												{selectedMarket.status === "Pending" ? "Check Status" : "Consensus Resolution"}
 											</Button>
 										}
 									/>
 								)}
 								{selectedMarket.proofIds.length > 0 && (
-									<Button variant="outline" className="flex-1 gap-2" onClick={() => {
+									<Button variant="outline" className="flex-1 gap-3 h-11 rounded-xl glass-hover" onClick={() => {
 										if (selectedMarket.proofIds.length === 1) {
 											window.location.href = `/dashboard/attestations?search=${selectedMarket.proofIds[0]}`;
 										} else {
@@ -424,7 +436,7 @@ function MarketsContent(): React.ReactElement {
 										}
 									}}>
 										<FileText className="w-4 h-4" />
-										View Proofs
+										Explorer
 									</Button>
 								)}
 							</div>

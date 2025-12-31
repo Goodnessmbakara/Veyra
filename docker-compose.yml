@@ -2,8 +2,8 @@ services:
   # Indexer Service - Indexes blockchain events and serves API
   indexer:
     build:
-      context: ./indexer
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: indexer/Dockerfile
     container_name: veyra-indexer
     ports:
       - "4001:4001"

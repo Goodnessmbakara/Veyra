@@ -16,34 +16,70 @@ export function parseContractError(error: any): string {
     return error;
   }
 
-  // Handle object errors
-  const msg = error.message || error.reason || JSON.stringify(error);
+  // Extract from ethers v6 Error object
+  let msg = "";
   
-  if (msg.includes("user rejected") || msg.includes("User rejected") || error.code === 4001 || (error.info && error.info.error && error.info.error.code === 4001)) {
+  if (error.reason) {
+    msg = error.reason;
+  } else if (error.shortMessage) {
+    msg = error.shortMessage;
+  } else if (error.info?.error?.message) {
+    msg = error.info.error.message;
+  } else if (error.message) {
+    msg = error.message;
+  }
+
+  // Handle specific codes
+  if (error.code === "ACTION_REJECTED" || error.code === 4001) {
     return "Transaction rejected by user";
   }
-  
-  if (msg.includes("insufficient funds")) {
+
+  if (error.code === "INSUFFICIENT_FUNDS") {
     return "Insufficient funds for transaction";
   }
 
-  // Try to extract clean reason from revert
+  if (error.code === "CALL_EXCEPTION") {
+    if (msg.includes("missing revert data")) {
+      // Often means gas estimation failed due to logic error
+      return "Transaction would fail. Please check your inputs or balance.";
+    }
+  }
+
+  // Clean common prefixes
   if (msg.includes("execution reverted:")) {
-    return msg.split("execution reverted:")[1].trim();
+    msg = msg.split("execution reverted:")[1].trim();
+  }
+  
+  if (msg.includes("Internal JSON-RPC error")) {
+    try {
+      const internal = typeof error.data === 'string' ? JSON.parse(error.data) : error.data;
+      if (internal?.message) msg = internal.message;
+    } catch (e) {}
   }
 
-  // Handle decoded custom errors
-  if (msg.includes("TradingClosed")) return "Trading is closed for this market";
-  if (msg.includes("TradingOpen")) return "Trading is not yet closed";
-  if (msg.includes("InsufficientBalance")) return "Insufficient balance for this trade";
-  if (msg.includes("InvalidParameter")) return "Invalid parameter provided";
-  if (msg.includes("MarketNotResolved")) return "Market is not yet resolved";
-  if (msg.includes("InvalidTime")) return "Invalid time specified";
+  // Map common custom errors
+  const customErrorMap: Record<string, string> = {
+    "TradingClosed": "Trading is closed for this market",
+    "TradingOpen": "Trading is not yet closed",
+    "InsufficientBalance": "Insufficient balance for this trade",
+    "InvalidParameter": "Invalid parameter provided",
+    "MarketNotResolved": "Market is not yet resolved",
+    "InvalidTime": "Invalid time specified",
+    "OnlyVault": "Unauthorized: Only the vault can perform this action",
+    "BelowMinimum": "Amount is below the minimum required"
+  };
 
-  // If it's a huge JSON string, try to parse it or just return a generic error
-  if (msg.length > 100 && (msg.includes("{") || msg.includes("["))) {
-    return "Transaction failed. Check console for details.";
+  for (const [key, val] of Object.entries(customErrorMap)) {
+    if (msg.includes(key)) return val;
   }
 
-  return msg;
+  // If we still have a huge JSON-like string, truncate or clean it
+  if (msg.length > 200) {
+    if (msg.includes("estimateGas")) {
+      return "Gas estimation failed. The transaction might revert.";
+    }
+    return "Transaction failed. Please try again or check console logic.";
+  }
+
+  return msg || "Transaction failed";
 }
