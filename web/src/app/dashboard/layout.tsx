@@ -27,8 +27,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	};
 
 	return (
-		<div className="container mx-auto max-w-7xl p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4">
-			<header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4">
+		<div className="container mx-auto max-w-7xl p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 relative z-10">
+			<header className="sticky top-0 z-50 w-full glass-strong border-b/50 -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 rounded-b-2xl">
 				<div className="flex flex-col gap-3 sm:gap-4">
 					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
 						<div className="flex-1 min-w-0">
@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 			</header>
 			<div>{children}</div>
 
-			<footer className="mt-12 pt-8 border-t border-border">
+			<footer className="mt-12 pt-8 border-t border-white/10 glass-subtle rounded-2xl p-6">
 				<div className="flex flex-col md:flex-row items-center justify-between gap-4">
 					<div className="flex items-center gap-4">
 						<span className="text-sm text-muted-foreground">
@@ -77,13 +77,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 						</span>
 					</div>
 					<div className="flex items-center gap-4">
-						<Button variant="ghost" size="icon">
+						<Button 
+							variant="ghost" 
+							size="icon"
+							onClick={() => window.open("https://github.com/JayHermes/Veyra", "_blank")}
+							title="GitHub"
+						>
 							<Github className="h-4 w-4" />
 						</Button>
-						<Button variant="ghost" size="icon">
+						<Button 
+							variant="ghost" 
+							size="icon"
+							onClick={() => window.open("https://x.com/Veyra_VPO", "_blank")}
+							title="Twitter/X"
+						>
 							<Twitter className="h-4 w-4" />
 						</Button>
-						<Button variant="ghost" size="icon">
+						<Button 
+							variant="ghost" 
+							size="icon"
+							onClick={() => window.open("https://veyra.network", "_blank")}
+							title="Website"
+						>
 							<Globe className="h-4 w-4" />
 						</Button>
 					</div>

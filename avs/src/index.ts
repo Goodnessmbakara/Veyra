@@ -40,17 +40,22 @@ if (!DELEGATION_MANAGER_ADDRESS) {
 	console.warn("⚠️  EIGENLAYER_DELEGATION_MANAGER not set. Operator weight checks will be skipped.");
 }
 
-if (!PINATA_API_KEY || !PINATA_SECRET_API_KEY) {
-	console.error("Missing Pinata credentials:");
-	console.error("PINATA_API_KEY, PINATA_SECRET_API_KEY");
-	console.error("Get your keys from: https://app.pinata.cloud/keys");
-	process.exit(1);
+// Pinata is optional - only needed for IPFS uploads
+let pinata: any = null;
+if (PINATA_API_KEY && PINATA_SECRET_API_KEY) {
+	try {
+		// Initialize Pinata SDK (v2 uses API key and secret)
+		// @ts-ignore - Pinata SDK initialization pattern
+		pinata = new pinataSDK(PINATA_API_KEY, PINATA_SECRET_API_KEY);
+		console.log(`[AVS] ✅ Pinata SDK initialized`);
+	} catch (error: any) {
+		console.warn(`[AVS] ⚠️  Failed to initialize Pinata: ${error.message}`);
+		pinata = null;
+	}
+} else {
+	console.warn(`[AVS] ⚠️  Pinata credentials not set. IPFS uploads will be disabled.`);
+	console.warn(`[AVS] Get your keys from: https://app.pinata.cloud/keys`);
 }
-
-// Initialize Pinata SDK (v2 uses API key and secret)
-// @ts-ignore - Pinata SDK initialization pattern
-const pinata = new pinataSDK(PINATA_API_KEY, PINATA_SECRET_API_KEY);
-console.log(`[AVS] ✅ Pinata SDK initialized`);
 
 // Initialize Gemini
 let genAI: GoogleGenerativeAI | null = null;
@@ -73,20 +78,23 @@ async function listGeminiModels() {
 	}
 }
 
-// Test authentication (will be awaited in startAVSService)
+// Test authentication (optional, only if Pinata is configured)
 async function verifyPinataAuth(): Promise<void> {
+	if (!pinata) {
+		return; // Skip if Pinata not configured
+	}
 	try {
 		const result = await pinata.testAuthentication();
 		if (result.authenticated) {
 			console.log(`[AVS] ✅ Pinata authentication successful`);
 		} else {
-			console.error("[AVS] ❌ Pinata authentication failed");
-			process.exit(1);
+			console.warn("[AVS] ⚠️  Pinata authentication failed. IPFS uploads will be disabled.");
+			pinata = null;
 		}
 	} catch (error: any) {
-		console.error("[AVS] ❌ Pinata authentication error:", error.message);
-		console.error("[AVS] Please verify your PINATA_API_KEY and PINATA_SECRET_API_KEY");
-		process.exit(1);
+		console.warn("[AVS] ⚠️  Pinata authentication error:", error.message);
+		console.warn("[AVS] IPFS uploads will be disabled.");
+		pinata = null;
 	}
 }
 
@@ -234,8 +242,14 @@ interface VerificationRequest {
 /**
  * Upload data to IPFS via Pinata and return CID
  * Uses real IPFS upload with Pinata pinning - no mocks or fake data
+ * Returns empty string if Pinata is not configured
  */
 async function uploadToIPFS(data: string | Uint8Array): Promise<string> {
+	if (!pinata) {
+		console.warn("[AVS] ⚠️  Pinata not configured. Skipping IPFS upload.");
+		return ""; // Return empty string if Pinata not available
+	}
+
 	try {
 		// Convert string to Buffer if needed
 		const dataBuffer = typeof data === "string" 
@@ -268,7 +282,8 @@ async function uploadToIPFS(data: string | Uint8Array): Promise<string> {
 		return cid;
 	} catch (error) {
 		console.error("[AVS] ❌ Pinata IPFS upload failed:", error);
-		throw new Error(`Failed to upload to Pinata IPFS: ${error instanceof Error ? error.message : String(error)}`);
+		console.warn("[AVS] ⚠️  Continuing without IPFS upload.");
+		return ""; // Return empty string on error instead of throwing
 	}
 }
 
@@ -584,15 +599,21 @@ async function startAVSService() {
 	const wallet = new ethers.Wallet(AVS_PRIVATE_KEY, provider);
 	const adapter = new ethers.Contract(ADAPTER_ADDRESS, ADAPTER_ABI, provider) as unknown as VeyraOracleAVSContract;
 	
-	// Verify operator is registered to AVS via EigenLayer
-	const isRegistered = await adapter.isOperatorRegistered(wallet.address);
-	if (!isRegistered) {
-		console.error(`[AVS] ❌ Operator ${wallet.address} is not registered to this AVS on EigenLayer!`);
-		console.error("[AVS] Please register as an operator on EigenLayer and opt-in to this AVS");
-		process.exit(1);
+	// Verify operator is registered to AVS (gracefully handle if not registered)
+	try {
+		const isRegistered = await adapter.isOperatorRegistered(wallet.address);
+		if (!isRegistered) {
+			console.warn(`[AVS] ⚠️  Operator ${wallet.address} is not registered to this AVS!`);
+			console.warn("[AVS] Service will continue, but operator must be registered to process requests.");
+			console.warn("[AVS] Register operator by calling the adapter contract's registerOperator function.");
+		} else {
+			console.log(`[AVS] ✅ Operator registered to AVS: ${wallet.address}`);
+		}
+	} catch (error: any) {
+		console.warn(`[AVS] ⚠️  Could not verify operator registration: ${error.message}`);
+		console.warn("[AVS] Service will continue, but operator registration status is unknown.");
+		console.warn("[AVS] Make sure the operator is registered to process requests.");
 	}
-	
-	console.log(`[AVS] ✅ Operator registered to AVS: ${wallet.address}`);
 	
 	// Check operator weight from DelegationManager
 	if (DELEGATION_MANAGER_ADDRESS) {
@@ -611,14 +632,23 @@ async function startAVSService() {
 			console.warn(`[AVS] ⚠️  Could not query operator weight:`, error.message);
 		}
 	} else {
-		const totalWeight = await adapter.getTotalOperatorWeight();
-		console.log(`[AVS] Total AVS operator weight: ${totalWeight.toString()}`);
+		try {
+			const totalWeight = await adapter.getTotalOperatorWeight();
+			console.log(`[AVS] Total AVS operator weight: ${totalWeight.toString()}`);
+		} catch (error: any) {
+			console.warn(`[AVS] ⚠️  Could not query total operator weight:`, error.message);
+		}
 	}
 	
 	console.log(`[AVS] Listening for VerificationRequested events on ${ADAPTER_ADDRESS}...`);
 
-	// Recover missed requests
-	await recoverMissedRequests(adapter, wallet, provider);
+	// Recover missed requests (non-blocking - failures won't stop service)
+	try {
+		await recoverMissedRequests(adapter, wallet, provider);
+	} catch (error: any) {
+		console.warn(`[AVS] ⚠️  Could not recover missed requests:`, error.message);
+		console.warn(`[AVS] Service will continue - will process new requests only.`);
+	}
 	
 	// Listen for VerificationRequested events
 	adapter.on("VerificationRequested", async (requestId: string, requester: string, marketRef: string, data: string, event: any) => {

@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { db, initSchema } from "./db.js";
 import { runIndexer } from "./indexer.js";
+import { scanHistoricalMarkets } from "./historical-scan.js";
+import { startPolymarketSync } from "./polymarket-sync.js";
 
 dotenv.config();
 
@@ -22,6 +24,24 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (reason, promise) => {
 	console.error("Unhandled Rejection at:", promise, "reason:", reason);
 	// Keep running
+});
+
+app.get("/", (_req: Request, res: Response) => {
+	res.json({
+		service: "Veyra Indexer API",
+		version: "0.1.0",
+		endpoints: {
+			health: "/health",
+			markets: "/markets",
+			market: "/markets/:address",
+			positions: "/positions/:trader",
+			resolutions: "/resolutions/:market",
+			kpis: "/kpis",
+			operators: "/operators",
+			jobs: "/jobs",
+			attestations: "/attestations"
+		}
+	});
 });
 
 app.get("/health", (_req: Request, res: Response) => res.json({ ok: true }));
@@ -235,11 +255,40 @@ app.get("/adapter-requests/:requestId", (req: Request, res: Response) => {
 	}
 });
 
+// Historical scan endpoint - scans blockchain for missing markets
+app.post("/scan", async (req: Request, res: Response) => {
+	try {
+		const fromBlock = req.body.fromBlock 
+			? parseInt(req.body.fromBlock) 
+			: (process.env.SCAN_FROM_BLOCK ? parseInt(process.env.SCAN_FROM_BLOCK) : 0);
+		
+		res.json({ 
+			message: "Historical scan started", 
+			fromBlock,
+			note: "Check logs for progress. This may take a few minutes."
+		});
+		
+		// Run scan in background (don't block response)
+		scanHistoricalMarkets(fromBlock, "latest")
+			.then((count) => {
+				console.log(`Historical scan complete. Indexed ${count} markets.`);
+			})
+			.catch((error) => {
+				console.error("Historical scan failed:", error);
+			});
+	} catch (err) {
+		res.status(500).json({ error: String(err) });
+	}
+});
+
 const PORT = Number(process.env.PORT || 4001);
 
 app.listen(PORT, async () => {
 	console.log(`Indexer API listening on :${PORT}`);
 	console.log(`Database schema initialized`);
+	
+	// Start Polymarket auto-sync (runs every 30 minutes)
+	startPolymarketSync(30 * 60 * 1000);
 	
 	// Only run event listener if explicitly enabled and env vars are set
 	if (process.env.RUN_INDEXER === "1") {

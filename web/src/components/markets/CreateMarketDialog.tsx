@@ -15,8 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateMarket } from "@/lib/contracts/hooks";
 import { useWallet } from "@/lib/wallet/walletContext";
-import { CONTRACT_ADDRESSES, getCurrentNetwork } from "@/lib/contracts/config";
-import { TEST_TOKEN_ADDRESS, getMarketFactoryContract, getSigner } from "@/lib/contracts/contracts";
+import { CONTRACT_ADDRESSES, getCurrentNetwork, switchToSepolia } from "@/lib/contracts/config";
+import { TEST_TOKEN_ADDRESS, getMarketFactoryContract, getSigner, MarketFactoryABI } from "@/lib/contracts/contracts";
 import { parseContractError } from "@/lib/utils";
 import { ethers } from "ethers";
 import { Loader2, Plus } from "lucide-react";
@@ -51,14 +51,17 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 
 	// Update oracle address when provider changes
 	useEffect(() => {
-		if (currentNetwork) {
-			if (oracleProvider === "chainlink") {
-				setOracleAddress(CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleChainlink || "");
-			} else if (oracleProvider === "gemini") {
-				setOracleAddress(CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOAdapter || "");
-			} else {
-				setOracleAddress("");
-			}
+		// Use sepolia as default if network not detected yet
+		const network = currentNetwork || "sepolia";
+		
+		if (oracleProvider === "chainlink") {
+			const address = CONTRACT_ADDRESSES[network as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleChainlink || "";
+			setOracleAddress(address);
+		} else if (oracleProvider === "gemini") {
+			const address = CONTRACT_ADDRESSES[network as keyof typeof CONTRACT_ADDRESSES]?.VPOAdapter || "";
+			setOracleAddress(address);
+		} else {
+			setOracleAddress("");
 		}
 	}, [oracleProvider, currentNetwork]);
 
@@ -82,20 +85,49 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 		// Determine oracle address based on selection
 		let finalOracleAddress = oracleAddress;
 		
+		// If oracle address is empty, try to get it from current network
+		if (!finalOracleAddress) {
+			const network = currentNetwork || "sepolia";
+			if (oracleProvider === "chainlink") {
+				finalOracleAddress = CONTRACT_ADDRESSES[network as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleChainlink || "";
+			} else if (oracleProvider === "gemini") {
+				finalOracleAddress = CONTRACT_ADDRESSES[network as keyof typeof CONTRACT_ADDRESSES]?.VPOAdapter || "";
+			}
+		}
+		
 		if (!finalOracleAddress || !ethers.isAddress(finalOracleAddress)) {
-			setError("Invalid oracle address");
+			setError("Invalid oracle address. Please ensure your wallet is connected and on the correct network.");
 			setIsLoading(false);
 			return;
 		}
 
 		try {
+			// Check and switch network BEFORE getting signer
+			const network = await getCurrentNetwork();
+			if (!network || network !== "sepolia") {
+				setError("Please switch to Sepolia network. Switching now...");
+				const switched = await switchToSepolia();
+				if (!switched) {
+					setError("Failed to switch network. Please manually switch to Sepolia in MetaMask.");
+					setIsLoading(false);
+					return;
+				}
+				// Wait a moment for network switch
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				// Update current network
+				const newNetwork = await getCurrentNetwork();
+				setCurrentNetwork(newNetwork || "sepolia");
+			}
+
 			const signer = await getSigner();
 			if (!signer) {
 				setError("Wallet not connected or signer not available.");
 				setIsLoading(false);
 				return;
 			}
-			const factory = getMarketFactoryContract(signer);
+			
+			// Use sepolia network for contract
+			const factory = getMarketFactoryContract(signer, "sepolia");
 			
 			// Always use createMarketWithOracle to support custom/Gemini oracles
 			// Convert feeBps to number
@@ -129,7 +161,34 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 			);
 			
 			setTxHash(tx.hash);
-			await tx.wait();
+			const receipt = await tx.wait();
+			
+			// Extract market address from MarketDeployed event
+			let marketAddress: string | null = null;
+			if (receipt && receipt.logs) {
+				try {
+					const iface = factory.interface;
+					const marketDeployedEvent = receipt.logs
+						.map((log: any) => {
+							try {
+								return iface.parseLog(log);
+							} catch {
+								return null;
+							}
+						})
+						.find((e: any) => e && e.name === "MarketDeployed");
+					
+					if (marketDeployedEvent && marketDeployedEvent.args) {
+						// MarketDeployed event args: marketId, market, vault, question, endTime, feeBps, flatFee, feeRecipient
+						marketAddress = marketDeployedEvent.args[1]; // market is the second argument
+						console.log("✅ Market created at address:", marketAddress);
+					} else {
+						console.warn("⚠️ MarketDeployed event not found in receipt logs");
+					}
+				} catch (err) {
+					console.error("❌ Error extracting market address from receipt:", err);
+				}
+			}
 			
 			setOpen(false);
 			// Reset form
@@ -141,7 +200,8 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 			setOracleProvider("gemini"); // Reset to default
 			setOracleAddress(""); // Will be reset by useEffect
 			
-			if (onSuccess) onSuccess(tx.hash); // Pass tx hash or market address if available from event
+			// Pass market address if available, otherwise tx hash
+			if (onSuccess) onSuccess(marketAddress || tx.hash);
 		} catch (err: any) {
 			console.error("Error creating market:", err);
 			// Handle specific custom errors
@@ -166,11 +226,23 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 		// Default time to 23:59
 		setEndTime("23:59");
 
-		// Fetch current network
-		void (async () => {
-			const network = await getCurrentNetwork();
-			setCurrentNetwork(network);
-		})();
+		// Fetch current network (with retry and default)
+		const fetchNetwork = async () => {
+			try {
+				const network = await getCurrentNetwork();
+				setCurrentNetwork(network || "sepolia"); // Default to sepolia if null
+			} catch (error) {
+				console.error("Error fetching network:", error);
+				// Default to sepolia if network detection fails
+				setCurrentNetwork("sepolia");
+			}
+		};
+
+		// Try immediately, then retry after a short delay (for wallet initialization)
+		fetchNetwork();
+		const timeout = setTimeout(fetchNetwork, 500);
+		
+		return () => clearTimeout(timeout);
 	}, []);
 
 	return (
@@ -280,8 +352,13 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 						<div className="space-y-2">
 							<Label>Oracle Address</Label>
 							<div className="p-2 bg-muted rounded text-xs font-mono break-all">
-								{oracleAddress || "Loading..."}
+								{oracleAddress || (currentNetwork ? "Loading..." : "Connect wallet to load address")}
 							</div>
+							{!oracleAddress && currentNetwork && (
+								<p className="text-xs text-yellow-600 dark:text-yellow-400">
+									Using default {currentNetwork} network addresses
+								</p>
+							)}
 						</div>
 					)}
 

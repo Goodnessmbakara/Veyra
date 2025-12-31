@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ResolveMarketDialog } from "@/components/markets/ResolveMarketDialog";
 import { VerifyExternalMarketDialog } from "@/components/markets/VerifyExternalMarketDialog";
+import { TradeDialog } from "@/components/markets/TradeDialog";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { ExternalLink, CheckCircle2, Clock, AlertCircle, TrendingUp } from "lucide-react";
 
 export default function ExternalMarketsPage(): React.ReactElement {
 	const [sourceFilter, setSourceFilter] = useState("all");
@@ -162,20 +163,33 @@ export default function ExternalMarketsPage(): React.ReactElement {
 										</Badge>
 									</div>
 								</div>
-								{market.txHash && (
-									<Button
-										variant="ghost"
-										size="sm"
-										className="mt-4 w-full"
-										onClick={(e) => {
-											e.stopPropagation();
-											window.open(`https://sepolia.etherscan.io/tx/${market.txHash}`, "_blank");
-										}}
-									>
-										<ExternalLink className="h-3 w-3 mr-2" />
-										View on Etherscan
-									</Button>
-								)}
+								<div className="mt-4 flex gap-2">
+									{market.status === "Pending" && (
+										<TradeDialog
+											marketAddress={market.id}
+											trigger={
+												<Button variant="default" size="sm" className="flex-1" onClick={(e) => e.stopPropagation()}>
+													<TrendingUp className="h-3 w-3 mr-2" />
+													Trade
+												</Button>
+											}
+										/>
+									)}
+									{market.txHash && (
+										<Button
+											variant="ghost"
+											size="sm"
+											className="flex-1"
+											onClick={(e) => {
+												e.stopPropagation();
+												window.open(`https://sepolia.etherscan.io/tx/${market.txHash}`, "_blank");
+											}}
+										>
+											<ExternalLink className="h-3 w-3 mr-2" />
+											Etherscan
+										</Button>
+									)}
+								</div>
 							</CardContent>
 						</Card>
 					))}
@@ -266,19 +280,32 @@ export default function ExternalMarketsPage(): React.ReactElement {
 									</div>
 								)}
 
-								{selectedMarket.status === "Pending" && (
-									<VerifyExternalMarketDialog
-										marketId={selectedMarket.id}
-										source={selectedMarket.source}
-										question={selectedMarket.question}
-										trigger={
-											<Button variant="outline" className="flex-1 gap-2">
-												<ExternalLink className="w-4 h-4" />
-												Verify
-											</Button>
-										}
-									/>
-								)}
+								<div className="flex gap-2">
+									{selectedMarket.status === "Pending" && (
+										<>
+											<TradeDialog
+												marketAddress={selectedMarket.id}
+												trigger={
+													<Button variant="default" className="flex-1 gap-2">
+														<TrendingUp className="w-4 h-4" />
+														Trade
+													</Button>
+												}
+											/>
+											<VerifyExternalMarketDialog
+												marketId={selectedMarket.id}
+												source={selectedMarket.source}
+												question={selectedMarket.question}
+												trigger={
+													<Button variant="outline" className="flex-1 gap-2">
+														<ExternalLink className="w-4 h-4" />
+														Verify
+													</Button>
+												}
+											/>
+										</>
+									)}
+								</div>
 							</div>
 						</>
 					)}

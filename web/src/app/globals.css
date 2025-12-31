@@ -45,38 +45,38 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(0 0 0); /* Pure black to match landing page */
+  --foreground: oklch(1 0 0); /* Pure white text */
+  --card: oklch(0.1 0 0 / 0.5); /* Very dark gray with transparency */
+  --card-foreground: oklch(1 0 0); /* White text */
+  --popover: oklch(0.15 0 0 / 0.7); /* Dark gray popover */
+  --popover-foreground: oklch(1 0 0); /* White text */
+  --primary: oklch(1 0 0); /* White primary */
+  --primary-foreground: oklch(0 0 0); /* Black text on white */
+  --secondary: oklch(0.2 0 0 / 0.6); /* Dark gray secondary */
+  --secondary-foreground: oklch(1 0 0); /* White text */
+  --muted: oklch(0.15 0 0 / 0.5); /* Muted dark gray */
+  --muted-foreground: oklch(0.7 0 0); /* Light gray text */
+  --accent: oklch(0.25 0 0 / 0.6); /* Slightly lighter gray accent */
+  --accent-foreground: oklch(1 0 0); /* White text */
+  --destructive: oklch(0.65 0.25 27); /* Keep red for destructive */
+  --destructive-foreground: oklch(1 0 0); /* White text */
+  --border: oklch(1 0 0 / 0.15); /* Subtle white borders */
+  --input: oklch(1 0 0 / 0.1); /* Subtle white input borders */
+  --ring: oklch(1 0 0 / 0.5); /* White ring for focus */
+  --chart-1: oklch(0.8 0 0); /* Light gray for charts */
+  --chart-2: oklch(0.6 0 0); /* Medium gray */
+  --chart-3: oklch(0.4 0 0); /* Darker gray */
+  --chart-4: oklch(0.7 0 0); /* Lighter gray */
+  --chart-5: oklch(0.5 0 0); /* Medium-dark gray */
+  --sidebar: oklch(0.1 0 0 / 0.5); /* Dark sidebar */
+  --sidebar-foreground: oklch(1 0 0); /* White text */
+  --sidebar-primary: oklch(1 0 0); /* White primary */
+  --sidebar-primary-foreground: oklch(0 0 0); /* Black on white */
+  --sidebar-accent: oklch(0.2 0 0 / 0.6); /* Dark gray accent */
+  --sidebar-accent-foreground: oklch(1 0 0); /* White text */
+  --sidebar-border: oklch(1 0 0 / 0.15); /* Subtle white border */
+  --sidebar-ring: oklch(1 0 0 / 0.5); /* White ring */
   --font-geist-sans: "Geist Sans", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
 }
@@ -121,7 +121,44 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    /* Black background to match landing page */
+    background: #000000;
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+  }
+  
+  /* Animated background particles matching landing page mesh gradient colors */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.015) 0%, transparent 50%);
+    animation: liquidFlow 20s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -1;
+  }
+  
+  @keyframes liquidFlow {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 1;
+    }
+    33% {
+      transform: translate(30px, -30px) scale(1.1);
+      opacity: 0.8;
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+      opacity: 0.9;
+    }
   }
 }
 
@@ -132,5 +169,82 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+  
+  /* Liquid Glass Effect - matching landing page black/white theme */
+  .glass {
+    background: rgba(26, 26, 26, 0.4); /* #1a1a1a with transparency */
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 32px 0 rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+  
+  .glass-strong {
+    background: rgba(51, 51, 51, 0.5); /* #333333 with transparency */
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 
+      0 12px 40px 0 rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .glass-subtle {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 4px 16px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+  
+  .glass-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .glass-hover:hover {
+    background: rgba(51, 51, 51, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 
+      0 12px 40px 0 rgba(0, 0, 0, 0.7),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+  }
+  
+  /* Liquid shine effect */
+  .liquid-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .liquid-shine::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      oklch(1 0 0 / 0.1) 50%,
+      transparent 70%
+    );
+    animation: shine 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  
+  @keyframes shine {
+    0% {
+      transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    }
+    100% {
+      transform: translateX(100%) translateY(100%) rotate(45deg);
+    }
   }
 }
