@@ -151,14 +151,14 @@ export function TradeDialog({ marketAddress, trigger, open: controlledOpen, onOp
 				)}
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-[450px]">
-				<DialogHeader>
-					<DialogTitle>
+				<DialogHeader className="pb-4">
+					<DialogTitle className="text-xl font-semibold tracking-tight">
 						{tab === "buy" ? "Buy Position" : "Sell Position"}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-muted-foreground/80">
 						{tab === "buy"
-							? "Buy long or short shares in this market"
-							: "Sell your existing positions"}
+							? "Take a long or short position in this market"
+							: "Exit your current positions and settle shares"}
 					</DialogDescription>
 				</DialogHeader>
 				
@@ -257,29 +257,34 @@ export function TradeDialog({ marketAddress, trigger, open: controlledOpen, onOp
 									onChange={(e) => setAmount(e.target.value)}
 									required
 									disabled={isLoading}
+									className="text-lg font-medium"
 									min="0"
 									max={balance}
 								/>
-								{marketData && (
-									<p className="text-xs text-muted-foreground">
-										Fee: {ethers.formatUnits(marketData.flatFee, decimals)} (flat fee)
-									</p>
-								)}
+								<div className="flex items-center justify-between px-1">
+									{marketData && (
+										<p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+											Fee: <span className="text-foreground/80">{ethers.formatUnits(marketData.flatFee, decimals)} (flat fee)</span>
+										</p>
+									)}
+								</div>
+
 								{marketData && Date.now() / 1000 > Number(marketData.endTime) && (
-									<div className="text-sm text-amber-500 bg-amber-50 dark:bg-amber-950 p-2 rounded flex items-center gap-2">
-										<AlertCircle className="h-4 w-4" />
-										Trading has ended for this market.
+									<div className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 p-3 rounded-xl flex items-center gap-3">
+										<AlertCircle className="h-4 w-4 shrink-0" />
+										<p>Trading has ended for this market.</p>
 									</div>
 								)}
 							</div>
 
 							{error && (
-								<div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded">
-									{parseContractError(error)}
+								<div className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 p-3 rounded-xl flex items-start gap-3">
+									<AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+									<p className="leading-relaxed">{parseContractError(error)}</p>
 								</div>
 							)}
 
-							<Button type="submit" className="w-full" disabled={isLoading || !isConnected || (marketData ? Date.now() / 1000 > Number(marketData.endTime) : false)}>
+							<Button type="submit" size="lg" className="w-full font-bold h-12 rounded-xl transition-all active:scale-[0.98]" disabled={isLoading || !isConnected || (marketData ? Date.now() / 1000 > Number(marketData.endTime) : false)}>
 								{isLoading ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -344,18 +349,20 @@ export function TradeDialog({ marketAddress, trigger, open: controlledOpen, onOp
 											onChange={(e) => setAmount(e.target.value)}
 											required
 											disabled={isLoading}
+											className="text-lg font-medium"
 											min="0"
 											max={maxAmount}
 										/>
 									</div>
 
 									{error && (
-										<div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded">
-											{parseContractError(error)}
+										<div className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 p-3 rounded-xl flex items-start gap-3">
+											<AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+											<p className="leading-relaxed">{parseContractError(error)}</p>
 										</div>
 									)}
 
-									<Button type="submit" className="w-full" disabled={isLoading || !isConnected}>
+									<Button type="submit" size="lg" className="w-full font-bold h-12 rounded-xl transition-all active:scale-[0.98]" disabled={isLoading || !isConnected}>
 										{isLoading ? (
 											<>
 												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
