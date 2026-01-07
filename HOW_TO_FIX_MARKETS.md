@@ -122,3 +122,6 @@ After enabling `RUN_INDEXER=1`:
 - Some are hardcoded (Proofs Verified, VPO Staked)
 - Will improve as indexer collects data
 
+
+
+

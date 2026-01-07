@@ -146,3 +146,6 @@ We should update the market creation to extract and display the market address f
 
 I'll add code to extract the market address from the transaction receipt so you can verify it was created correctly.
 
+
+
+

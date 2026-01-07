@@ -33,19 +33,29 @@ export async function runIndexer() {
         const factoryAbi = loadAbi("contracts/market/MarketFactory.sol/MarketFactory.json");
         const marketAbi = loadAbi("contracts/market/Market.sol/Market.json");
         const adapterAbi = loadAbi("contracts/adapter/VeyraOracleAVS.sol/VeyraOracleAVS.json");
-        const oracleAbi = loadAbi("contracts/oracle/VPOOracleChainlink.sol/VPOOracleChainlink.json");
+        const oracleAbi = loadAbi("contracts/archive/VPOOracleChainlink.sol/VPOOracleChainlink.json");
         const provider = new ethers.JsonRpcProvider(RPC_URL);
         const factory = new ethers.Contract(FACTORY, factoryAbi, provider);
         // MarketDeployed: store market and vault
         factory.on("MarketDeployed", (marketId, market, vault, question, endTime, feeBps, flatFee, feeRecipient, ev) => {
             try {
-                db.prepare(`INSERT OR REPLACE INTO markets(address, marketId, question, endTime, oracle, vault, createdAt) VALUES (?,?,?,?,?,?,?)`).run(market, ethers.hexlify(marketId), question, Number(endTime), "", vault, Date.now());
+                db.prepare(`INSERT OR REPLACE INTO markets(address, marketId, question, endTime, oracle, vault, status, createdAt) VALUES (?,?,?,?,?,?,?,?)`).run(market, ethers.hexlify(marketId), question, Number(endTime), "", vault, 0, Date.now());
             }
             catch (err) {
                 console.error("db markets err", err);
             }
             // subscribe to market events
             const m = new ethers.Contract(market, marketAbi, provider);
+            // Listen for CloseTrading event to update status
+            m.on("CloseTrading", (marketId2, e2) => {
+                try {
+                    db.prepare(`UPDATE markets SET status=? WHERE address=?`).run(1, market); // 1 = PendingResolve
+                    console.log(`Market ${market} status updated to PendingResolve`);
+                }
+                catch (err) {
+                    console.error("db markets status update err", err);
+                }
+            });
             m.on("Trade", (trader, isLong, collateralInOrOut, sharesDelta, fee, e2) => {
                 try {
                     db.prepare(`INSERT INTO trades(market, trader, isLong, collateralInOrOut, sharesDelta, fee, blockNumber, txHash) VALUES (?,?,?,?,?,?,?,?)`).run(market, trader, isLong ? 1 : 0, collateralInOrOut.toString(), sharesDelta.toString(), fee.toString(), e2.blockNumber, e2.log.transactionHash);
@@ -57,6 +67,9 @@ export async function runIndexer() {
             m.on("Resolve", (marketId2, outcome, resultData, metadata, e3) => {
                 try {
                     db.prepare(`INSERT OR REPLACE INTO resolutions(market, outcome, blockNumber, txHash) VALUES (?,?,?,?)`).run(market, Number(outcome), e3.blockNumber, e3.log.transactionHash);
+                    // Also update market status and outcome
+                    db.prepare(`UPDATE markets SET status=?, outcome=? WHERE address=?`).run(2, Number(outcome), market); // 2 = Resolved
+                    console.log(`Market ${market} resolved with outcome ${outcome}`);
                 }
                 catch (err) {
                     console.error("db resolutions err", err);
@@ -92,12 +105,30 @@ export async function runIndexer() {
                 }
                 // Create attestation entry
                 try {
-                    db.prepare(`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt) 
-					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`).run(jobId, cidStr, outcome ? 1 : 0, ev.log.address, // Fulfiller is the contract (or we could track msg.sender from event)
-                    ev.blockNumber, ev.log.transactionHash, now, jobId);
+                    db.prepare(`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt, signature) 
+					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`).run(jobId, cidStr, outcome ? 1 : 0, ev.log.address, // Fulfiller is the contract (or we could track msg.sender from event)
+                    ev.blockNumber, ev.log.transactionHash, now, metadata, // Signature is stored in metadata for VerificationFulfilled
+                    jobId);
                 }
                 catch (err) {
                     console.error("db attestations err", err);
+                }
+            });
+            // AttestationSubmitted: Capture individual operator attestations
+            adapter.on("AttestationSubmitted", (requestId, operator, outcome, attestationCid, signature, ev) => {
+                const jobId = ethers.hexlify(requestId);
+                const now = Date.now();
+                const cidStr = ethers.toUtf8String(attestationCid);
+                // Create or update attestation entry
+                // Note: Currently we only support 1 attestation per job in the DB (PK is id=requestId)
+                // In a multi-operator setup, we would need a separate table or composite PK
+                try {
+                    db.prepare(`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt, signature) 
+					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`).run(jobId, cidStr, outcome ? 1 : 0, operator, ev.blockNumber, ev.log.transactionHash, now, signature, jobId);
+                    console.log(`Attestation submitted for ${jobId} by ${operator}`);
+                }
+                catch (err) {
+                    console.error("db attestations submit err", err);
                 }
             });
             // AVSNodeUpdated: Update operators table
@@ -261,9 +292,9 @@ export async function runIndexer() {
         throw error;
     }
 }
-if (process.env.RUN_INDEXER === "1") {
-    runIndexer().catch((e) => {
-        console.error(e);
-        process.exit(1);
-    });
-}
+// if (process.env.RUN_INDEXER === "1") {
+// 	runIndexer().catch((e) => {
+// 		console.error(e);
+// 		process.exit(1);
+// 	});
+// }

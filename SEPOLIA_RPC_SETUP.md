@@ -126,3 +126,6 @@ SEPOLIA_RPC_URL=https://rpc.sepolia.org
 
 That's it! Just paste this in Railway and you're done.
 
+
+
+
