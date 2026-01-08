@@ -248,7 +248,7 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button size="sm" className="gap-2">
+				<Button size="sm" className="gap-2 text-white/90 hover:text-white">
 					<Plus className="h-4 w-4" />
 					Create Market
 				</Button>

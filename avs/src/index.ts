@@ -29,8 +29,167 @@ const PINATA_SECRET_API_KEY = process.env.PINATA_SECRET_API_KEY || "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const CHAIN_ID = parseInt(process.env.CHAIN_ID || "11155111"); // Default to Sepolia
 const DELEGATION_MANAGER_ADDRESS = process.env.EIGENLAYER_DELEGATION_MANAGER || "";
+const FACTORY_ADDRESS = process.env.FACTORY_ADDRESS || process.env.MARKET_FACTORY_ADDRESS || "";
 
-if (!RPC_URL || !ADAPTER_ADDRESS || !AVS_PRIVATE_KEY) {
+// Minimal ABIs for Keeper functionality
+const FACTORY_ABI = [
+	"event MarketDeployed(bytes32 indexed marketId, address market, address vault, string question, uint256 endTime, uint16 feeBps, uint256 flatFee, address feeRecipient)",
+	"function getMarket(bytes32 marketId) external view returns (address)"
+];
+
+const MARKET_ABI = [
+	"function status() external view returns (uint8)",
+	"function endTime() external view returns (uint256)",
+	"function closeTrading() external",
+	"function requestResolve(bytes calldata extraData) external",
+	"function oracle() external view returns (address)",
+	"function question() external view returns (string)",
+	"function marketId() external view returns (bytes32)"
+];
+
+// Market Watcher Class for Keeper Functionality
+class MarketWatcher {
+	private provider: ethers.JsonRpcProvider;
+	private wallet: ethers.Wallet;
+	private factory: ethers.Contract;
+	private knownMarkets: Set<string> = new Set();
+	private isScanning = false;
+
+	constructor(provider: ethers.JsonRpcProvider, wallet: ethers.Wallet, factoryAddress: string) {
+		this.provider = provider;
+		this.wallet = wallet;
+		this.factory = new ethers.Contract(factoryAddress, FACTORY_ABI, provider);
+	}
+
+	async start() {
+		console.log(`[Keeper] 🛡️ Starting Market Watcher service...`);
+		if (!this.factory.target) {
+			console.error("[Keeper] ❌ Factory address not set. Keeper disabled.");
+			return;
+		}
+
+		console.log(`[Keeper] Listening for markets on factory: ${this.factory.target}`);
+
+		// Initial scan for existing markets
+		await this.scanExistingMarkets();
+
+		// Listen for new markets
+		this.factory.on("MarketDeployed", async (marketId, marketAddress, vault, question, endTime, feeBps, flatFee, feeRecipient, event) => {
+			console.log(`[Keeper] 🆕 New market detected: ${marketAddress}`);
+			this.knownMarkets.add(marketAddress);
+			this.checkMarket(marketAddress);
+		});
+
+		// Periodic check loop (every 60 seconds)
+		setInterval(() => this.checkAllMarkets(), 60000);
+	}
+
+	async scanExistingMarkets() {
+		console.log("[Keeper] 🔍 Scanning for existing markets...");
+		try {
+			const currentBlock = await this.provider.getBlockNumber();
+			// Look back ~1000 blocks
+			const fromBlock = Math.max(0, currentBlock - 10000); 
+			
+			const events = await this.factory.queryFilter(this.factory.filters.MarketDeployed(), fromBlock);
+			console.log(`[Keeper] Found ${events.length} markets in recent history.`);
+			
+			for (const event of events) {
+				if ('args' in event) {
+					const marketAddress = (event as any).args[1];
+					this.knownMarkets.add(marketAddress);
+				}
+			}
+			
+			// Check them immediately
+			this.checkAllMarkets();
+		} catch (error: any) {
+			console.error(`[Keeper] ❌ Error scanning markets: ${error.message}`);
+		}
+	}
+
+	async checkAllMarkets() {
+		if (this.isScanning) return;
+		this.isScanning = true;
+		
+		try {
+			console.log(`[Keeper] Checking ${this.knownMarkets.size} watched markets...`);
+			for (const marketAddress of this.knownMarkets) {
+				await this.checkMarket(marketAddress);
+			}
+		} catch (error) {
+			console.error("[Keeper] Error in check loop", error);
+		} finally {
+			this.isScanning = false;
+		}
+	}
+
+	async checkMarket(marketAddress: string) {
+		try {
+			const market = new ethers.Contract(marketAddress, MARKET_ABI, this.wallet);
+			
+			// 1. Check Status
+			const status = await market.status();
+			// Status 0 = Trading, 1 = PendingResolve, 2 = Resolved
+			if (status !== 0n) return; // Only interested in active markets
+
+			// 2. Check Time
+			const endTime = await market.endTime();
+			const now = Math.floor(Date.now() / 1000);
+			
+			if (now <= Number(endTime)) return; // Not ended yet
+
+			console.log(`[Keeper] ⏰ Market ${marketAddress} ended! (End: ${endTime}, Now: ${now})`);
+			
+			// 3. Close Trading
+			console.log(`[Keeper] 🔒 Closing trading for ${marketAddress}...`);
+			try {
+				const tx = await market.closeTrading();
+				console.log(`[Keeper] ⏳ Close trading tx sent: ${tx.hash}`);
+				await tx.wait();
+				console.log(`[Keeper] ✅ Trading closed.`);
+			} catch (err: any) {
+				// Ignore if already closed (race condition)
+				if (!err.message.includes("TradingClosed") && !err.message.includes("InvalidParameter")) {
+					console.error(`[Keeper] Failed to close trading: ${err.message}`);
+					return;
+				}
+			}
+
+			// 4. Request Resolution
+			console.log(`[Keeper] 📢 Requesting resolution for ${marketAddress}...`);
+			
+			// Determine payload based on Oracle type
+			const oracleAddress = await market.oracle();
+			let payload = "0x"; // Default empty for manual/chainlink
+			
+			// Check if oracle is THIS AVS Adapter
+			if (oracleAddress.toLowerCase() === ADAPTER_ADDRESS.toLowerCase()) {
+				console.log(`[Keeper] 🤖 Market uses Gemini AVS. Constructing payload...`);
+				const question = await market.question();
+				// encode (source="gemini", logic=question)
+				payload = ethers.AbiCoder.defaultAbiCoder().encode(
+					["string", "string"],
+					["gemini", question]
+				);
+			} else {
+				console.log(`[Keeper] 👤 Market uses external oracle (${oracleAddress}). Sending empty trigger.`);
+			}
+
+			try {
+				const tx = await market.requestResolve(payload);
+				console.log(`[Keeper] ⏳ Request resolve tx sent: ${tx.hash}`);
+				await tx.wait();
+				console.log(`[Keeper] ✅ Resolution requested.`);
+			} catch (err: any) {
+				console.error(`[Keeper] Failed to request resolution: ${err.message}`);
+			}
+
+		} catch (error: any) {
+			console.error(`[Keeper] ❌ Error checking market ${marketAddress}: ${error.message}`);
+		}
+	}
+}
 	console.error("Missing required environment variables:");
 	console.error("SEPOLIA_RPC_URL, ADAPTER_ADDRESS, AVS_PRIVATE_KEY");
 	process.exit(1);
@@ -641,6 +800,15 @@ async function startAVSService() {
 	}
 	
 	console.log(`[AVS] Listening for VerificationRequested events on ${ADAPTER_ADDRESS}...`);
+
+	// Start Keeper Service
+	if (FACTORY_ADDRESS) {
+		const watcher = new MarketWatcher(provider, wallet, FACTORY_ADDRESS);
+		// Start watcher without awaiting to allow AVS service to proceed
+		watcher.start().catch(err => console.error("[Keeper] Fatal error:", err));
+	} else {
+		console.warn("[Keeper] ⚠️  FACTORY_ADDRESS not set. Keeper service disabled.");
+	}
 
 	// Recover missed requests (non-blocking - failures won't stop service)
 	try {

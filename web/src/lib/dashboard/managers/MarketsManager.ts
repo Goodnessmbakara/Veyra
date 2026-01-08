@@ -37,9 +37,10 @@ export class MarketsManager {
 
 				return markets.map((m: IndexerMarket) => {
 					// Map status numbers to display strings
-					const statusDisplay = m.status === 2 ? "Resolved" :
-					                      m.status === 1 ? "Pending" :
-					                      "Active";
+					let statusDisplay = "Active";
+					if (m.status === 2) statusDisplay = "Resolved";
+					else if (m.status === 1) statusDisplay = "Pending";
+					else if (m.status === 0 && now > m.endTime) statusDisplay = "Ended";
 					
 					// Map outcome to result
 					let result = "Pending";
@@ -81,9 +82,11 @@ export class MarketsManager {
 				const market: any = await res.json();
 				
 				// Map status numbers to display strings
-				const statusDisplay = market.status === 2 ? "Resolved" :
-				                      market.status === 1 ? "Pending" :
-				                      "Active";
+				const now = Math.floor(Date.now() / 1000);
+				let statusDisplay = "Active";
+				if (market.status === 2) statusDisplay = "Resolved";
+				else if (market.status === 1) statusDisplay = "Pending";
+				else if (market.status === 0 && now > market.endTime) statusDisplay = "Ended";
 				
 				// Map outcome to result
 				let result = "Pending";

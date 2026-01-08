@@ -168,6 +168,8 @@ function MarketsContent(): React.ReactElement {
 									className={`text-xs ${
 										market.status === "Active" 
 											? "bg-blue-500/10 text-blue-500" 
+											: market.status === "Ended"
+											? "bg-orange-500/10 text-orange-500"
 											: "bg-green-500/10 text-green-500"
 									}`}
 								>
@@ -282,6 +284,8 @@ function MarketsContent(): React.ReactElement {
 												"px-2 py-0 h-5 text-[10px]",
 												selectedMarket.status === "Active"
 													? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+													: selectedMarket.status === "Ended"
+													? "bg-orange-500/10 text-orange-400 border-orange-500/20"
 													: "bg-green-500/10 text-green-400 border-green-500/20"
 											)}
 										>
@@ -396,7 +400,9 @@ function MarketsContent(): React.ReactElement {
 									) : (
 										<div className="text-center py-6 px-4 rounded-2xl border border-dashed border-white/10 bg-white/2">
 											<p className="text-xs text-muted-foreground/60 leading-relaxed italic">
-												Verification protocol in progress. Attestations will be linked once the consensus threshold is met.
+												{selectedMarket.status === "Active" 
+													? "No attestations yet. Market is open for trading." 
+													: "Verification protocol in progress. Attestations will be linked once the consensus threshold is met."}
 											</p>
 										</div>
 									)}

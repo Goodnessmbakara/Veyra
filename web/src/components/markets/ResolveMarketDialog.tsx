@@ -372,12 +372,12 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 
 				<div className="space-y-4">
 					{/* Process Logs */}
-					<div className="bg-slate-950 rounded-md p-3 font-mono text-xs text-slate-300 h-32 overflow-y-auto border border-slate-800">
+					<div className="bg-slate-950 rounded-md p-3 font-mono text-[10px] sm:text-xs text-slate-300 h-48 overflow-y-auto border border-slate-800 whitespace-pre-wrap break-all">
 						{logs.length === 0 ? (
 							<span className="text-slate-500">Waiting to start...</span>
 						) : (
 							logs.map((log, i) => (
-								<div key={i} className="mb-1 last:mb-0">
+								<div key={i} className="mb-0.5 last:mb-0">
 									{log}
 								</div>
 							))
@@ -438,7 +438,11 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 									<Alert>
 										<AlertCircle className="h-4 w-4" />
 										<AlertDescription>
-											Step 1: Request resolution from oracle. This will trigger the Chainlink Functions request.
+											Step 1: Request resolution. <br/>
+											<span className="text-xs text-muted-foreground">
+												Note: The automated Keeper service should handle this shortly after the market ends. 
+												You can manually request if needed.
+											</span>
 										</AlertDescription>
 									</Alert>
 									<Button
@@ -454,7 +458,7 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 										) : !isConnected ? (
 											"Connect Wallet"
 										) : (
-											"Request Resolution"
+											"Request Resolution (Manual Override)"
 										)}
 									</Button>
 								</>
@@ -473,9 +477,9 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 										<div className="py-6 text-center space-y-4">
 											<Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
 											<div>
-												<p className="font-medium">Waiting for AVS Operators...</p>
+												<p className="font-medium">Verifying with Gemini & AVS Consensus...</p>
 												<p className="text-xs text-muted-foreground mt-1">
-													The decentralized network is verifying the outcome. This may take a few minutes.
+													The decentralized network is verifying the outcome using Gemini. This may take a few minutes.
 												</p>
 											</div>
 											<div className="text-xs font-mono bg-slate-900 p-2 rounded">

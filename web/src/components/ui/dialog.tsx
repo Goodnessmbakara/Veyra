@@ -36,7 +36,7 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
 	return (
 		<DialogPortal data-slot="dialog-portal">
 			<DialogOverlay />
-			<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+			<div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:items-start sm:pt-[10vh]">
 				<DialogPrimitive.Content
 					data-slot="dialog-content"
 					className={cn(

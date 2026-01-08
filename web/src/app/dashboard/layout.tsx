@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { Badge } from "@/components/ui/badge";
@@ -31,8 +32,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 			<header className="sticky top-0 z-50 w-full glass-strong border-b/50 -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 pt-3 sm:pt-4 lg:pt-6 pb-3 sm:pb-4 rounded-b-2xl">
 				<div className="flex flex-col gap-3 sm:gap-4">
 					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-						<div className="flex-1 min-w-0">
-							<h1 className="text-xl sm:text-2xl font-semibold">Veyra Dashboard</h1>
+						<div className="flex-1 min-w-0 flex flex-col gap-1">
+							<div className="relative h-8 w-32 sm:h-10 sm:w-40">
+								<Image 
+									src="/Veryra-logoa.png" 
+									alt="Veyra Logo" 
+									fill
+									className="object-contain object-left"
+									priority
+								/>
+							</div>
 							<p className="text-xs sm:text-sm text-muted-foreground">Verifiable Prediction Oracle Network</p>
 						</div>
 						<div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
@@ -73,14 +82,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 				<div className="flex flex-col md:flex-row items-center justify-between gap-4">
 					<div className="flex items-center gap-4">
 						<span className="text-sm text-muted-foreground">
-							© 2025 Veyra Network. All rights reserved.
+							© 2026 Veyra Network. All rights reserved.
 						</span>
 					</div>
 					<div className="flex items-center gap-4">
 						<Button 
 							variant="ghost" 
 							size="icon"
-							onClick={() => window.open("https://github.com/JayHermes/Veyra", "_blank")}
+							onClick={() => window.open("https://github.com/Goodnessmbakara/Veyra", "_blank")}
 							title="GitHub"
 						>
 							<Github className="h-4 w-4" />

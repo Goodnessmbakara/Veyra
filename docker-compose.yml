@@ -76,7 +76,10 @@ services:
       - SEPOLIA_RPC_URL=${SEPOLIA_RPC_URL:-https://eth-sepolia.g.alchemy.com/v2/demo}
       - PINATA_API_KEY=${PINATA_API_KEY:-}
       - PINATA_SECRET_API_KEY=${PINATA_SECRET_KEY:-}
+      - PINATA_SECRET_API_KEY=${PINATA_SECRET_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - FACTORY_ADDRESS=${FACTORY:-}
+      - MARKET_FACTORY_ADDRESS=${FACTORY:-}
     volumes:
       - ./avs/src:/app/src:ro
     networks:
@@ -84,8 +87,8 @@ services:
     depends_on:
       - indexer
     restart: unless-stopped
-    profiles:
-      - avs  # Only start with --profile avs flag
+    # profiles:
+    #   - avs  # Enabled by default now for Keeper functionality
 
 networks:
   veyra-network:

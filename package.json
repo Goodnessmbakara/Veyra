@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Goodnessmbakara/Veyra"
+  },
   "scripts": {
     "dev": "npm run dev:web",
     "dev:web": "cd web && npm run dev",
