@@ -139,3 +139,6 @@ The indexer needs to scan past blocks to find existing markets. This requires:
 - Some are hardcoded (Proofs Verified, VPO Staked)
 - Will improve as indexer collects more data
 
+
+
+

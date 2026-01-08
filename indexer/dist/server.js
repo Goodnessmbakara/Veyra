@@ -9,10 +9,36 @@ initSchema();
 const app = express();
 app.use(cors());
 app.use(express.json());
+// Prevent crashes from unhandled RPC errors
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err);
+    // Keep running
+});
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+    // Keep running
+});
+app.get("/", (_req, res) => {
+    res.json({
+        service: "Veyra Indexer API",
+        version: "0.1.0",
+        endpoints: {
+            health: "/health",
+            markets: "/markets",
+            market: "/markets/:address",
+            positions: "/positions/:trader",
+            resolutions: "/resolutions/:market",
+            kpis: "/kpis",
+            operators: "/operators",
+            jobs: "/jobs",
+            attestations: "/attestations"
+        }
+    });
+});
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/markets", (_req, res) => {
     try {
-        const rows = db.prepare(`SELECT address, marketId, question, endTime, oracle, vault, createdAt FROM markets ORDER BY createdAt DESC`).all();
+        const rows = db.prepare(`SELECT address, marketId, question, endTime, oracle, vault, status, outcome, createdAt FROM markets ORDER BY createdAt DESC`).all();
         res.json(rows);
     }
     catch (err) {

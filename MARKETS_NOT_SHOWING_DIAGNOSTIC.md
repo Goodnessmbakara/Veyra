@@ -209,3 +209,6 @@ fetch('/api/markets')
 **If empty:** Markets not indexed yet
 **If error:** API connection issue
 
+
+
+

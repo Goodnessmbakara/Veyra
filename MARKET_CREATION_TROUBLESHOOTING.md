@@ -235,3 +235,6 @@ If this fails, check the browser console for the specific error.
 4. **Test RPC connection** manually
 5. **Check wallet has Sepolia ETH** for gas fees
 
+
+
+
